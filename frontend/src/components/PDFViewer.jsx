@@ -1,44 +1,20 @@
 import { useState } from 'react';
-import { Document, Page, pdfjs } from 'react-pdf';
 import { Button } from './ui/button';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2, FileText } from 'lucide-react';
-
-// Set up the worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+import { Loader2, FileText, ExternalLink } from 'lucide-react';
 
 export default function PDFViewer({ pdfUrl, fileName, fileSize }) {
-  const [numPages, setNumPages] = useState(null);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [scale, setScale] = useState(1.0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(false);
 
-  function onDocumentLoadSuccess({ numPages }) {
-    setNumPages(numPages);
+  const handleLoad = () => {
     setLoading(false);
-    setError(null);
-  }
+    setError(false);
+  };
 
-  function onDocumentLoadError(error) {
-    console.error('Error loading PDF:', error);
-    setError('Failed to load PDF. The file may be corrupted or too large.');
+  const handleError = () => {
+    console.error('Error loading PDF');
     setLoading(false);
-  }
-
-  const goToPrevPage = () => {
-    setPageNumber((prev) => Math.max(prev - 1, 1));
-  };
-
-  const goToNextPage = () => {
-    setPageNumber((prev) => Math.min(prev + 1, numPages));
-  };
-
-  const zoomIn = () => {
-    setScale((prev) => Math.min(prev + 0.2, 3.0));
-  };
-
-  const zoomOut = () => {
-    setScale((prev) => Math.max(prev - 0.2, 0.5));
+    setError(true);
   };
 
   const formatFileSize = (bytes) => {
