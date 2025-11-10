@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chunked Download Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #28a745;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        .log {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 2px 0;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .success {
+            color: #28a745;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Chunked Download Test</h1>
+    <p>Test the chunked download functionality for large files from Render worker</p>
+
+    <div class="test-section">
+        <h3>Download Configuration</h3>
+        <label>Worker URL:</label>
+        <input type="text" id="workerUrl" placeholder="https://your-worker.onrender.com" value="">
+        
+        <label>Message ID:</label>
+        <input type="text" id="messageId" placeholder="123" value="">
+        
+        <label>Download Token:</label>
+        <input type="text" id="token" placeholder="JWT token from backend" value="">
+        
+        <label>File Name:</label>
+        <input type="text" id="fileName" placeholder="video.mp4" value="">
+        
+        <label>File Size (bytes):</label>
+        <input type="number" id="fileSize" placeholder="104857600" value="">
+        
+        <label>Chunk Size (MB):</label>
+        <input type="number" id="chunkSize" placeholder="5" value="5">
+    </div>
+
+    <div class="test-section">
+        <h3>Test Actions</h3>
+        <button onclick="testChunkedDownload()">🚀 Start Chunked Download</button>
+        <button onclick="testDirectDownload()">📥 Direct Download (No Chunks)</button>
+        <button onclick="clearLog()">🗑️ Clear Log</button>
+        
+        <div style="margin-top: 20px;">
+            <strong>Progress:</strong>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar" style="width: 0%">0%</div>
+            </div>
+            <div id="progressText"></div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test Log</h3>
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const CHUNK_SIZE_MB = 5;
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            updateProgress(0, 0, 0);
+        }
+
+        function updateProgress(percent, downloaded, total) {
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            
+            progressBar.style.width = percent + '%';
+            progressBar.textContent = percent + '%';
+            
+            if (total > 0) {
+                const downloadedMB = (downloaded / (1024 * 1024)).toFixed(2);
+                const totalMB = (total / (1024 * 1024)).toFixed(2);
+                progressText.textContent = `Downloaded: ${downloadedMB} MB / ${totalMB} MB`;
+            }
+        }
+
+        async function testChunkedDownload() {
+            const workerUrl = document.getElementById('workerUrl').value;
+            const messageId = document.getElementById('messageId').value;
+            const token = document.getElementById('token').value;
+            const fileName = document.getElementById('fileName').value;
+            const fileSize = parseInt(document.getElementById('fileSize').value);
+            const chunkSizeMB = parseInt(document.getElementById('chunkSize').value);
+
+            if (!workerUrl || !messageId || !token || !fileName || !fileSize) {
+                log('Please fill in all fields!', 'error');
+                return;
+            }
+
+            log('🚀 Starting chunked download...', 'info');
+            log(`File: ${fileName} (${(fileSize / (1024 * 1024)).toFixed(2)} MB)`, 'info');
+
+            const CHUNK_SIZE = chunkSizeMB * 1024 * 1024;
+            const totalChunks = Math.ceil(fileSize / CHUNK_SIZE);
+            
+            log(`Chunks: ${totalChunks} × ${chunkSizeMB}MB`, 'info');
+
+            const chunks = [];
+            let downloadedBytes = 0;
+
+            try {
+                for (let i = 0; i < totalChunks; i++) {
+                    const start = i * CHUNK_SIZE;
+                    const end = Math.min(start + CHUNK_SIZE - 1, fileSize - 1);
+                    
+                    log(`Downloading chunk ${i + 1}/${totalChunks} (bytes ${start}-${end})...`, 'info');
+                    
+                    const url = `${workerUrl}/download?messageId=${messageId}&token=${encodeURIComponent(token)}&fileName=${encodeURIComponent(fileName)}`;
+                    
+                    const response = await fetch(url, {
+                        headers: {
+                            'Range': `bytes=${start}-${end}`
+                        }
+                    });
+
+                    if (!response.ok && response.status !== 206) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const chunk = await response.arrayBuffer();
+                    chunks.push(chunk);
+                    downloadedBytes += chunk.byteLength;
+
+                    const percent = Math.round((downloadedBytes / fileSize) * 100);
+                    updateProgress(percent, downloadedBytes, fileSize);
+                    
+                    log(`✓ Chunk ${i + 1}/${totalChunks} complete (${chunk.byteLength} bytes)`, 'success');
+                }
+
+                // Combine chunks
+                log('Combining chunks...', 'info');
+                const blob = new Blob(chunks);
+                
+                // Trigger download
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                log(`✅ Download complete! File size: ${blob.size} bytes`, 'success');
+
+            } catch (error) {
+                log(`❌ Download failed: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        async function testDirectDownload() {
+            const workerUrl = document.getElementById('workerUrl').value;
+            const messageId = document.getElementById('messageId').value;
+            const token = document.getElementById('token').value;
+            const fileName = document.getElementById('fileName').value;
+
+            if (!workerUrl || !messageId || !token || !fileName) {
+                log('Please fill in all fields!', 'error');
+                return;
+            }
+
+            log('📥 Starting direct download (no chunking)...', 'info');
+
+            try {
+                const url = `${workerUrl}/download?messageId=${messageId}&token=${encodeURIComponent(token)}&fileName=${encodeURIComponent(fileName)}`;
+                
+                log(`Fetching: ${url}`, 'info');
+                
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const contentLength = response.headers.get('Content-Length');
+                const total = contentLength ? parseInt(contentLength, 10) : 0;
+
+                log(`Content-Length: ${total} bytes`, 'info');
+
+                if (response.body && response.body.getReader) {
+                    const reader = response.body.getReader();
+                    const chunks = [];
+                    let received = 0;
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        
+                        if (done) break;
+                        
+                        chunks.push(value);
+                        received += value.length;
+
+                        if (total) {
+                            const percent = Math.round((received / total) * 100);
+                            updateProgress(percent, received, total);
+                        }
+                    }
+
+                    const blob = new Blob(chunks);
+                    
+                    // Trigger download
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    log(`✅ Download complete! File size: ${blob.size} bytes`, 'success');
+                } else {
+                    const blob = await response.blob();
+                    
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    log(`✅ Download complete! File size: ${blob.size} bytes`, 'success');
+                }
+
+            } catch (error) {
+                log(`❌ Download failed: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        // Log initial message
+        log('Ready to test! Fill in the configuration and click a button.', 'info');
+    </script>
+</body>
+</html>
