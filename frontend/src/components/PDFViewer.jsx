@@ -1,75 +1,15 @@
-import { useState, useEffect } from 'react';
-import { Document, Page, pdfjs } from 'react-pdf';
 import { Button } from './ui/button';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2, FileText } from 'lucide-react';
-
-// Set up the worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+import { Download, FileText } from 'lucide-react';
 
 export default function PDFViewer({ pdfUrl, fileName, fileSize }) {
-  const [numPages, setNumPages] = useState(null);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [scale, setScale] = useState(1.0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [pdfData, setPdfData] = useState(null);
-
-  useEffect(() => {
-    const fetchPDF = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        // Fetch PDF as blob to bypass download headers
-        const response = await fetch(pdfUrl);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch PDF');
-        }
-        
-        const blob = await response.blob();
-        
-        // Convert blob to ArrayBuffer for react-pdf
-        const arrayBuffer = await blob.arrayBuffer();
-        setPdfData(arrayBuffer);
-      } catch (err) {
-        console.error('Error fetching PDF:', err);
-        setError('Failed to load PDF. Please try again.');
-        setLoading(false);
-      }
-    };
-
-    if (pdfUrl) {
-      fetchPDF();
-    }
-  }, [pdfUrl]);
-
-  function onDocumentLoadSuccess({ numPages }) {
-    setNumPages(numPages);
-    setLoading(false);
-    setError(null);
-  }
-
-  function onDocumentLoadError(error) {
-    console.error('Error loading PDF:', error);
-    setError('Failed to load PDF. The file may be corrupted or too large.');
-    setLoading(false);
-  }
-
-  const goToPrevPage = () => {
-    setPageNumber((prev) => Math.max(prev - 1, 1));
-  };
-
-  const goToNextPage = () => {
-    setPageNumber((prev) => Math.min(prev + 1, numPages));
-  };
-
-  const zoomIn = () => {
-    setScale((prev) => Math.min(prev + 0.2, 3.0));
-  };
-
-  const zoomOut = () => {
-    setScale((prev) => Math.max(prev - 0.2, 0.5));
+  const handleDownload = () => {
+    const link = document.createElement('a');
+    link.href = pdfUrl;
+    link.download = fileName;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const formatFileSize = (bytes) => {
