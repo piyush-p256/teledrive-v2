@@ -73,15 +73,17 @@ export default function PDFViewer({ pdfUrl, fileName, fileSize }) {
         </div>
 
         {/* Open in New Tab Button */}
-        <Button
-          onClick={() => window.open(pdfUrl, '_blank')}
-          variant="ghost"
-          size="sm"
-          className="text-white hover:bg-gray-700"
-        >
-          <ExternalLink className="w-4 h-4 mr-2" />
-          Open in New Tab
-        </Button>
+        {blobUrl && (
+          <Button
+            onClick={() => window.open(blobUrl, '_blank')}
+            variant="ghost"
+            size="sm"
+            className="text-white hover:bg-gray-700"
+          >
+            <ExternalLink className="w-4 h-4 mr-2" />
+            Open in New Tab
+          </Button>
+        )}
       </div>
 
       {/* PDF Content */}
@@ -101,20 +103,20 @@ export default function PDFViewer({ pdfUrl, fileName, fileSize }) {
               className="bg-indigo-600 hover:bg-indigo-700 text-white"
             >
               <ExternalLink className="w-4 h-4 mr-2" />
-              Open in New Tab
+              Try Opening Original
             </Button>
           </div>
         )}
 
-        {/* PDF iframe - browser's native PDF viewer */}
-        <iframe
-          src={pdfUrl}
-          className="w-full h-full border-0"
-          title={fileName}
-          onLoad={handleLoad}
-          onError={handleError}
-          style={{ display: error ? 'none' : 'block' }}
-        />
+        {/* PDF iframe using blob URL to bypass download headers */}
+        {!loading && !error && blobUrl && (
+          <iframe
+            src={blobUrl}
+            className="w-full h-full border-0"
+            title={fileName}
+            style={{ display: 'block' }}
+          />
+        )}
       </div>
     </div>
   );
