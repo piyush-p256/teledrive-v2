@@ -42,130 +42,50 @@ export default function PDFViewer({ pdfUrl, fileName, fileSize }) {
           </div>
         </div>
 
-        {/* Zoom Controls */}
-        {!loading && !error && (
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={zoomOut}
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-gray-700"
-              disabled={scale <= 0.5}
-            >
-              <ZoomOut className="w-4 h-4" />
-            </Button>
-            <span className="text-sm text-gray-300 min-w-[60px] text-center">
-              {Math.round(scale * 100)}%
-            </span>
-            <Button
-              onClick={zoomIn}
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-gray-700"
-              disabled={scale >= 3.0}
-            >
-              <ZoomIn className="w-4 h-4" />
-            </Button>
-          </div>
-        )}
+        {/* Open in New Tab Button */}
+        <Button
+          onClick={() => window.open(pdfUrl, '_blank')}
+          variant="ghost"
+          size="sm"
+          className="text-white hover:bg-gray-700"
+        >
+          <ExternalLink className="w-4 h-4 mr-2" />
+          Open in New Tab
+        </Button>
       </div>
 
       {/* PDF Content */}
-      <div className="flex-1 overflow-auto bg-gray-900 flex items-center justify-center p-4">
+      <div className="flex-1 overflow-hidden bg-gray-900 flex items-center justify-center relative">
         {loading && (
-          <div className="flex flex-col items-center space-y-4">
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
             <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
-            <p className="text-white text-sm">Loading PDF...</p>
+            <p className="text-white text-sm mt-4">Loading PDF...</p>
           </div>
         )}
 
         {error && (
           <div className="text-center">
-            <p className="text-red-400 text-lg mb-4">{error}</p>
+            <p className="text-red-400 text-lg mb-4">Failed to load PDF preview</p>
             <Button
               onClick={() => window.open(pdfUrl, '_blank')}
               className="bg-indigo-600 hover:bg-indigo-700 text-white"
             >
-              Try Opening in New Tab
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Open in New Tab
             </Button>
           </div>
         )}
 
-        {!loading && !error && (
-          <div className="bg-white shadow-2xl">
-            <Document
-              file={pdfUrl}
-              onLoadSuccess={onDocumentLoadSuccess}
-              onLoadError={onDocumentLoadError}
-              loading={
-                <div className="flex items-center justify-center p-8">
-                  <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-                </div>
-              }
-              options={{
-                cMapUrl: `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/cmaps/`,
-                cMapPacked: true,
-                standardFontDataUrl: `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/standard_fonts/`,
-              }}
-            >
-              <Page
-                pageNumber={pageNumber}
-                scale={scale}
-                renderTextLayer={true}
-                renderAnnotationLayer={true}
-              />
-            </Document>
-          </div>
-        )}
+        {/* PDF iframe - browser's native PDF viewer */}
+        <iframe
+          src={pdfUrl}
+          className="w-full h-full border-0"
+          title={fileName}
+          onLoad={handleLoad}
+          onError={handleError}
+          style={{ display: error ? 'none' : 'block' }}
+        />
       </div>
-
-      {/* PDF Navigation Footer */}
-      {!loading && !error && numPages && (
-        <div className="bg-gray-800 text-white px-6 py-3 flex items-center justify-between border-t border-gray-700">
-          <Button
-            onClick={goToPrevPage}
-            variant="ghost"
-            size="sm"
-            disabled={pageNumber <= 1}
-            className="text-white hover:bg-gray-700"
-          >
-            <ChevronLeft className="w-5 h-5 mr-1" />
-            Previous
-          </Button>
-
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-300">
-              Page {pageNumber} of {numPages}
-            </span>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                min="1"
-                max={numPages}
-                value={pageNumber}
-                onChange={(e) => {
-                  const page = parseInt(e.target.value);
-                  if (page >= 1 && page <= numPages) {
-                    setPageNumber(page);
-                  }
-                }}
-                className="w-16 px-2 py-1 bg-gray-700 text-white text-sm rounded border border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
-
-          <Button
-            onClick={goToNextPage}
-            variant="ghost"
-            size="sm"
-            disabled={pageNumber >= numPages}
-            className="text-white hover:bg-gray-700"
-          >
-            Next
-            <ChevronRight className="w-5 h-5 ml-1" />
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
