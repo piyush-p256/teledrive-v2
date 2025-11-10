@@ -1,21 +1,28 @@
 import { useState, useEffect } from 'react';
+import { Document, Page, pdfjs } from 'react-pdf';
 import { Button } from './ui/button';
-import { Loader2, FileText, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2, FileText } from 'lucide-react';
+import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
+import 'react-pdf/dist/esm/Page/TextLayer.css';
+
+// Set up the worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 export default function PDFViewer({ pdfUrl, fileName, fileSize }) {
+  const [numPages, setNumPages] = useState(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [scale, setScale] = useState(1.0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [blobUrl, setBlobUrl] = useState(null);
+  const [error, setError] = useState(null);
+  const [pdfData, setPdfData] = useState(null);
 
   useEffect(() => {
-    let objectUrl = null;
-
-    const fetchAndDisplayPDF = async () => {
+    const fetchPDF = async () => {
       try {
         setLoading(true);
-        setError(false);
+        setError(null);
         
-        // Fetch the PDF as a blob to bypass download headers
+        // Fetch PDF as blob to bypass download headers
         const response = await fetch(pdfUrl);
         
         if (!response.ok) {
@@ -24,28 +31,48 @@ export default function PDFViewer({ pdfUrl, fileName, fileSize }) {
         
         const blob = await response.blob();
         
-        // Create a blob URL
-        objectUrl = URL.createObjectURL(blob);
-        setBlobUrl(objectUrl);
-        setLoading(false);
+        // Convert blob to ArrayBuffer for react-pdf
+        const arrayBuffer = await blob.arrayBuffer();
+        setPdfData(arrayBuffer);
       } catch (err) {
-        console.error('Error loading PDF:', err);
-        setError(true);
+        console.error('Error fetching PDF:', err);
+        setError('Failed to load PDF. Please try again.');
         setLoading(false);
       }
     };
 
     if (pdfUrl) {
-      fetchAndDisplayPDF();
+      fetchPDF();
     }
-
-    // Cleanup function to revoke the object URL
-    return () => {
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
   }, [pdfUrl]);
+
+  function onDocumentLoadSuccess({ numPages }) {
+    setNumPages(numPages);
+    setLoading(false);
+    setError(null);
+  }
+
+  function onDocumentLoadError(error) {
+    console.error('Error loading PDF:', error);
+    setError('Failed to load PDF. The file may be corrupted or too large.');
+    setLoading(false);
+  }
+
+  const goToPrevPage = () => {
+    setPageNumber((prev) => Math.max(prev - 1, 1));
+  };
+
+  const goToNextPage = () => {
+    setPageNumber((prev) => Math.min(prev + 1, numPages));
+  };
+
+  const zoomIn = () => {
+    setScale((prev) => Math.min(prev + 0.2, 3.0));
+  };
+
+  const zoomOut = () => {
+    setScale((prev) => Math.max(prev - 0.2, 0.5));
+  };
 
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
