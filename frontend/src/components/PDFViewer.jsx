@@ -1,21 +1,51 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Loader2, FileText, ExternalLink } from 'lucide-react';
 
 export default function PDFViewer({ pdfUrl, fileName, fileSize }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [blobUrl, setBlobUrl] = useState(null);
 
-  const handleLoad = () => {
-    setLoading(false);
-    setError(false);
-  };
+  useEffect(() => {
+    let objectUrl = null;
 
-  const handleError = () => {
-    console.error('Error loading PDF');
-    setLoading(false);
-    setError(true);
-  };
+    const fetchAndDisplayPDF = async () => {
+      try {
+        setLoading(true);
+        setError(false);
+        
+        // Fetch the PDF as a blob to bypass download headers
+        const response = await fetch(pdfUrl);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch PDF');
+        }
+        
+        const blob = await response.blob();
+        
+        // Create a blob URL
+        objectUrl = URL.createObjectURL(blob);
+        setBlobUrl(objectUrl);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error loading PDF:', err);
+        setError(true);
+        setLoading(false);
+      }
+    };
+
+    if (pdfUrl) {
+      fetchAndDisplayPDF();
+    }
+
+    // Cleanup function to revoke the object URL
+    return () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [pdfUrl]);
 
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
